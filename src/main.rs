@@ -14,27 +14,41 @@ gfx_defines! {
     vertex Vertex {
         pos: [f32; 2] = "a_Pos",
         colour: [f32; 4] = "a_Colour",
-        res: [f32; 2] = "vert_Resolution",
+    }
+
+    constant Uniforms {
+        resolution: [f32; 2] = "u_Resolution",
     }
 
     pipeline pipe {
         vbuf: gfx::VertexBuffer<Vertex> = (),
+        consts: gfx::ConstantBuffer<Uniforms> = "consts",
         out: gfx::RenderTarget<Srgba8> = "Target0",
     }
 }
 
 const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
 const RES: [f32; 2] = [1280.0, 800.0];
 
 const RECT: &[Vertex] = &[
-    Vertex { pos: [1.0, -1.0], colour: WHITE, res: RES },
-    Vertex { pos: [-1.0, -1.0], colour: WHITE, res: RES },
-    Vertex { pos: [-1.0, 1.0], colour: WHITE, res: RES },
-    Vertex { pos: [1.0, 1.0], colour: WHITE, res: RES },
+    Vertex { pos: [1.0, -1.0], colour: BLACK },
+    Vertex { pos: [-1.0, -1.0], colour: BLACK },
+    Vertex { pos: [-1.0, 1.0], colour: BLACK },
+    Vertex { pos: [1.0, 1.0], colour: BLACK },
 ];
 
-const INDICES: &[u16] = &[0, 1, 2, 2, 3, 0];
+fn update_uniforms(window: &glutin::WindowedContext) -> Uniforms {
+    let res = if let Some(dimensions) = window.window().get_inner_size() {
+        [dimensions.width as f32, dimensions.height as f32]
+    } else {
+        RES
+    };
+
+    Uniforms {            
+        resolution: res,
+    }
+}
 
 fn main() {
     let mut events_loop = glutin::EventsLoop::new();
@@ -60,6 +74,7 @@ fn main() {
 
     let mut data = pipe::Data {
         vbuf: vertex_buffer,
+        consts: factory.create_constant_buffer(1),
         out: rtv,
     };
 
@@ -83,8 +98,10 @@ fn main() {
                 _ => (),
             }
         });
+        let consts = update_uniforms(&window);
 
         encoder.clear(&data.out, BLACK);
+        encoder.update_constant_buffer(&data.consts, &consts);
         encoder.draw(&slice, &pso, &data);
         encoder.flush(&mut device);
         window.swap_buffers().unwrap();

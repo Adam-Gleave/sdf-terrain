@@ -1,7 +1,11 @@
 #version 440 core
 
 in vec4 v_Colour;
-in vec2 frag_Resolution;
+
+uniform consts {
+  vec2 u_Resolution;
+};
+
 out vec4 Target0;
 
 const int MAX_MARCHING_STEPS = 255;
@@ -121,7 +125,7 @@ vec3 phongIllumination(
 }
 
 void main() {
-  vec3 dir = rayDirection(45.0, frag_Resolution);
+  vec3 dir = rayDirection(45.0, u_Resolution);
   vec3 eye = vec3(0.0, 0.0, 5.0);
   float dist = shortestDistanceToSurface(eye, dir, MIN_DIST, MAX_DIST);
 
