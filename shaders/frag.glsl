@@ -13,27 +13,8 @@ const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float EPSILON = 0.0001;
 
-float sphereSDF(vec3 point) {
-  return length(point) - 1.0;
-}
-
-float sceneSDF(vec3 point) {
-  return sphereSDF(point);
-}
-
-float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection, float start, float end) {
-  float depth = start;
-  for (int i = 0; i < MAX_MARCHING_STEPS; i++) {
-    float dist = sceneSDF(eye + depth * marchingDirection);
-    if (dist < EPSILON) {
-      return depth;
-    }
-    depth += dist;
-    if (depth >= end) {
-      return end;
-    }
-  }
-  return end;
+float f(float x, float z) {
+  return 0.0;
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size) {
@@ -43,17 +24,31 @@ vec3 rayDirection(float fieldOfView, vec2 size) {
   return normalize(vec3(xy, -z));
 }
 
-vec3 estimateNormal(vec3 point) {
-    return normalize(vec3(
-        sceneSDF(vec3(point.x + EPSILON, point.y, point.z)) - 
-        sceneSDF(vec3(point.x - EPSILON, point.y, point.z)),
-        
-        sceneSDF(vec3(point.x, point.y + EPSILON, point.z)) -
-        sceneSDF(vec3(point.x, point.y - EPSILON, point.z)),
-        
-        sceneSDF(vec3(point.x, point.y, point.z  + EPSILON)) - 
-        sceneSDF(vec3(point.x, point.y, point.z - EPSILON))
-    ));
+bool marchRay(vec3 origin, vec3 direction, inout float resT )
+{
+  const float dt = 0.01f;
+  const float mint = 0.001f;
+  const float maxt = 10.0f;
+  
+  for (float t = mint; t < maxt; t += dt)
+  {
+    const vec3 point = origin + direction * t;
+    if (point.y < f( point.x, point.z ))
+    {
+        resT = t - 0.5f*dt;
+        return true;
+    }
+  }
+  return false;
+}
+
+vec3 estimateNormal(vec3 point)
+{
+  return normalize(vec3(
+    f(point.x - EPSILON, point.z) - f(point.x + EPSILON, point.z),
+    2.0f * EPSILON,
+    f(point.x, point.z - EPSILON) - f(point.x, point.z + EPSILON)
+  ));
 }
 
 vec3 phongAddForLight(
@@ -98,9 +93,6 @@ vec3 phongIllumination(
   vec3 lightPosition = vec3(2.0, 2.0, 2.0);
   vec3 lightIntensity = vec3(0.4, 0.4, 0.4);
 
-  vec3 light2Position = vec3(-3.0, -1.5, 1.0);
-  vec3 light2Intensity = vec3(0.05, 0.05, 0.05);
-
   colour += phongAddForLight(
     diffuse_colour,
     specular_colour,
@@ -111,46 +103,39 @@ vec3 phongIllumination(
     eye
   );
 
-  colour += phongAddForLight(
-    diffuse_colour,
-    specular_colour,
-    shininess,
-    light2Position,
-    light2Intensity,
-    point,
-    eye
-  );
-
   return colour;
+}
+
+vec3 skyColour() {
+  return vec3(0.6, 0.75, 1.0);
 }
 
 void main() {
   vec3 dir = rayDirection(45.0, u_Resolution);
-  vec3 eye = vec3(0.0, 0.0, 5.0);
-  float dist = shortestDistanceToSurface(eye, dir, MIN_DIST, MAX_DIST);
+  vec3 eye = vec3(0.0, 1.0, 5.0);
 
-  if (dist > MAX_DIST - EPSILON) {
-    // Did not hit anything
-    Target0 = vec4(0.0, 0.0, 0.0, 1.0);
-    return;
+  float t;
+  if (marchRay(eye, dir, t)) {
+    // Lighting calculations
+    vec3 point = eye + dir * t;
+    
+    vec3 ambient_colour = vec3(0.15, 0.4, 0.15);
+    vec3 diffuse_colour = vec3(0.2, 0.8, 0.2);
+    vec3 specular_colour = vec3(1.0, 1.0, 1.0);
+    float shininess = 5.0;
+
+    vec3 colour = phongIllumination(
+      ambient_colour,
+      diffuse_colour,
+      specular_colour,
+      shininess,
+      point,
+      eye
+    );
+
+    Target0 = vec4(colour, 1.0);
   }
-
-  // Lighting calculations
-  vec3 point = eye + dir * dist;
-  
-  vec3 ambient_colour = vec3(0.4, 0.15, 0.15);
-  vec3 diffuse_colour = vec3(0.9, 0.15, 0.15);
-  vec3 specular_colour = vec3(1.0, 1.0, 1.0);
-  float shininess = 5.0;
-
-  vec3 colour = phongIllumination(
-    ambient_colour,
-    diffuse_colour,
-    specular_colour,
-    shininess,
-    point,
-    eye
-  );
-
-  Target0 = vec4(colour, 1.0);
+  else {
+    Target0 = vec4(skyColour(), 1.0);
+  }
 }
