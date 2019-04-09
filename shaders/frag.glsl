@@ -11,7 +11,7 @@ out vec4 Target0;
 const float EPSILON = 0.0001;
 
 float f(float x, float z) {
-  return (sin(x) - sin(z)) / 2.0;
+  return (sin(x) + sin(z))/4;
 }
 
 vec3 rayDirection(float fieldOfView, vec2 size) {
@@ -24,7 +24,7 @@ vec3 rayDirection(float fieldOfView, vec2 size) {
 bool marchRay(vec3 origin, vec3 direction, inout float resT )
 {
   const float dt = 0.1;
-  const float mint = 0.001;
+  const float mint = 0.01;
   const float maxt = 100.0;
   
   for (float t = mint; t < maxt; t += dt)
